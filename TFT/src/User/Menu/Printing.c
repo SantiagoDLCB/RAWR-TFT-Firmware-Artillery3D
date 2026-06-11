@@ -193,8 +193,21 @@ void moveToPausePosition(void)
   if (printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M82\n");
   if (coordinateIsKnown())
   {
-    mustStoreCmd("G1 Z%.3f X%.3f Y%.3f F%d\n",
-                 (printerStateBeforePause.coordinate.axis[Z_AXIS] + infoSettings.pause_z_raise),
+    float currentZ    = printerStateBeforePause.coordinate.axis[Z_AXIS];
+    float raiseDistance = infoSettings.pause_z_raise;
+
+    // Clamp raise to avoid exceeding machine max height (with 10mm safety margin)
+    if (currentZ + infoSettings.pause_z_raise > infoSettings.machine_size_max[Z_AXIS] - 10)
+    {
+      raiseDistance = infoSettings.machine_size_max[Z_AXIS] - 10 - currentZ;
+    }
+
+    if (raiseDistance > 0)
+    {
+      mustStoreCmd("G91\nG1 Z%.3f F%d\nG90\n", raiseDistance, infoSettings.pause_feedrate[Z_AXIS]);
+    }
+
+    mustStoreCmd("G1 X%.3f Y%.3f F%d\n",
                  infoSettings.pause_pos[X_AXIS],
                  infoSettings.pause_pos[Y_AXIS],
                  infoSettings.pause_feedrate[X_AXIS]);
