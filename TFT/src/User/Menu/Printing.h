@@ -73,7 +73,9 @@ typedef struct
 extern PrinterState printerStateBeforePause;
 
 void saveCurrentState(void);
+void performPauseRetraction(void);
 void moveToPausePosition(void);
+void performResumePurge(void);
 void restoreSavedPrinterState(void);
 
 #endif

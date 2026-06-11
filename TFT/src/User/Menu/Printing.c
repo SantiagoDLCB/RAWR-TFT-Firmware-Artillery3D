@@ -176,6 +176,17 @@ void saveCurrentState(void)
   printerStateBeforePause.isRelativeExtrude = eGetRelative();
 }
 
+void performPauseRetraction(void)
+{
+  if (infoSettings.pause_retract_len <= 0) return;
+
+  mustStoreCmd("M83\nG1 E%.5f F%d\n",
+               -1 * infoSettings.pause_retract_len,
+               infoSettings.filament_unload_retract_speed);
+
+  if (!printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M82\n");
+}
+
 void moveToPausePosition(void)
 {
   if (printerStateBeforePause.isRelativeCoor)    mustStoreCmd("G90\n");
@@ -190,6 +201,20 @@ void moveToPausePosition(void)
   }
   if (printerStateBeforePause.isRelativeCoor)    mustStoreCmd("G91\n");
   if (printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M83\n");
+}
+
+void performResumePurge(void)
+{
+  if (infoSettings.resume_purge_len <= 0) return;
+
+  mustStoreCmd("M83\nG1 E%.5f F%d\n",
+               infoSettings.resume_purge_len,
+               infoSettings.pause_feedrate[E_AXIS]);
+
+  mustStoreCmd("G1 E-0.5 F%d\n",
+               infoSettings.filament_unload_retract_speed);
+
+  if (!printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M82\n");
 }
 
 void restoreSavedPrinterState(void)
@@ -380,6 +405,7 @@ bool setPrintPause(bool is_pause, bool is_m0pause, bool M600)
         }
 
         saveCurrentState();
+        performPauseRetraction();
         moveToPausePosition();
       }
       else
@@ -390,6 +416,7 @@ bool setPrintPause(bool is_pause, bool is_m0pause, bool M600)
           Serial_Puts(SERIAL_PORT, "M108\n");
           break;
         }
+        performResumePurge();
         restoreSavedPrinterState();
       }
       break;
