@@ -2,6 +2,7 @@
 #include "string.h"
 #include "Configuration.h"
 #include "Parametersetting.h"
+#include "Gcode/gcode.h"
 
 const char axis_id[TOTAL_AXIS]={'X','Y','Z','E'};
 
@@ -91,4 +92,16 @@ void coordinateSetAxisActualSteps(AXIS axis, int steps)
 float coordinateGetAxisActual(AXIS axis)
 {
   return curPosition.axis[axis];
+}
+
+void updateCurPosition(void)
+{
+  request_M114();
+  curPosition.feedrate = targetPosition.feedrate;
+}
+
+void coordinateGetAllActual(COORDINATE *tmp)
+{
+  updateCurPosition();
+  memcpy(tmp, &curPosition, sizeof(curPosition));
 }

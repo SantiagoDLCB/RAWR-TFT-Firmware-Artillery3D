@@ -34,6 +34,35 @@ void clearRequestCommandInfo(void)
     echo:No SD card
 
 */
+/*
+  M114 - Get current position
+  Response: X:0.00 Y:0.00 Z:10.00 E:5000.00 Count X:0 Y:0 Z:16000
+*/
+bool request_M114(void)
+{
+  strcpy(requestCommandInfo.command, "M114\n");
+  strcpy(requestCommandInfo.startMagic, "X:");
+  strcpy(requestCommandInfo.stopMagic, "ok");
+  strcpy(requestCommandInfo.errorMagic, "Error");
+  resetRequestCommandInfo();
+  mustStoreCmd(requestCommandInfo.command);
+  WaitingGcodeResponse = 1;
+  while (!requestCommandInfo.done)
+  {
+    loopProcess();
+  }
+  WaitingGcodeResponse = 0;
+  // Parse: "X:0.00 Y:0.00 Z:10.00 E:5000.00 Count..."
+  extern COORDINATE curPosition;
+  sscanf(requestCommandInfo.cmd_rev_buf, "X:%f Y:%f Z:%f E:%f",
+         &curPosition.axis[0],
+         &curPosition.axis[1],
+         &curPosition.axis[2],
+         &curPosition.axis[3]);
+  clearRequestCommandInfo();
+  return true;
+}
+
 bool request_M21(void)
 {
   strcpy(requestCommandInfo.command,"M21\n");

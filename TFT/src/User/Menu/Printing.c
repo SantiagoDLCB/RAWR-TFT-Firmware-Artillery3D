@@ -85,6 +85,7 @@ const ITEM itemIsPause[2] = {
 COORDINATE coordinateTmp;
 bool isCoorRelative;
 bool isExtrudeRelative;
+PrinterState printerStateBeforePause;
 
 static PRINTING infoPrinting;
 
@@ -166,6 +167,49 @@ u32 getPrintTime(void)
 void printSetUpdateWaiting(bool isWaiting)
 {
   update_waiting = isWaiting;
+}
+
+void saveCurrentState(void)
+{
+  coordinateGetAll(&printerStateBeforePause.coordinate);
+  printerStateBeforePause.isRelativeCoor    = coorGetRelative();
+  printerStateBeforePause.isRelativeExtrude = eGetRelative();
+}
+
+void moveToPausePosition(void)
+{
+  if (printerStateBeforePause.isRelativeCoor)    mustStoreCmd("G90\n");
+  if (printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M82\n");
+  if (coordinateIsKnown())
+  {
+    mustStoreCmd("G1 Z%.3f X%.3f Y%.3f F%d\n",
+                 (printerStateBeforePause.coordinate.axis[Z_AXIS] + infoSettings.pause_z_raise),
+                 infoSettings.pause_pos[X_AXIS],
+                 infoSettings.pause_pos[Y_AXIS],
+                 infoSettings.pause_feedrate[X_AXIS]);
+  }
+  if (printerStateBeforePause.isRelativeCoor)    mustStoreCmd("G91\n");
+  if (printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M83\n");
+}
+
+void restoreSavedPrinterState(void)
+{
+  if (printerStateBeforePause.isRelativeCoor)    mustStoreCmd("G90\n");
+  if (printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M82\n");
+  if (coordinateIsKnown())
+  {
+    mustStoreCmd("G1 X%.3f Y%.3f F%d\n",
+                 printerStateBeforePause.coordinate.axis[X_AXIS],
+                 printerStateBeforePause.coordinate.axis[Y_AXIS],
+                 infoSettings.pause_feedrate[X_AXIS]);
+    mustStoreCmd("G1 Z%.3f F%d\n",
+                 printerStateBeforePause.coordinate.axis[Z_AXIS],
+                 infoSettings.pause_feedrate[Z_AXIS]);
+  }
+  mustStoreCmd("G92 E%.5f\n", printerStateBeforePause.coordinate.axis[E_AXIS]);
+  mustStoreCmd("G1 F%d\n",    printerStateBeforePause.coordinate.feedrate);
+  if (printerStateBeforePause.isRelativeCoor)    mustStoreCmd("G91\n");
+  if (printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M83\n");
 }
 
 void printerGotoIdle(void)
@@ -325,29 +369,18 @@ bool setPrintPause(bool is_pause, bool is_m0pause, bool M600)
       while (infoCmd.count != 0) {loopProcess();}
       }
 
-      isCoorRelative = coorGetRelative();
-      isExtrudeRelative = eGetRelative();
-
       if(infoPrinting.pause)
       {
         //restore status before pause
         //if pause was triggered through M0/M1 then break
-      if(is_m0pause == true) {
-        setM0Pause(is_m0pause);
-        popupReminder(textSelect(LABEL_PAUSE), textSelect(LABEL_M0_PAUSE));
-        break;
+        if(is_m0pause == true) {
+          setM0Pause(is_m0pause);
+          popupReminder(textSelect(LABEL_PAUSE), textSelect(LABEL_M0_PAUSE));
+          break;
         }
 
-        coordinateGetAll(&coordinateTmp);
-        if (isCoorRelative == true)     mustStoreCmd("G90\n");
-        if (isExtrudeRelative == true)  mustStoreCmd("M82\n");
-        if (coordinateIsKnown())
-        {
-          mustStoreCmd("G1 Z%.3f X%.3f Y%.3f F%d\n", (coordinateTmp.axis[Z_AXIS] + infoSettings.pause_z_raise), infoSettings.pause_pos[X_AXIS], infoSettings.pause_pos[Y_AXIS], infoSettings.pause_feedrate[X_AXIS]);
-        }
-
-        if (isCoorRelative == true)     mustStoreCmd("G91\n");
-        if (isExtrudeRelative == true)  mustStoreCmd("M83\n");
+        saveCurrentState();
+        moveToPausePosition();
       }
       else
       {
@@ -357,19 +390,7 @@ bool setPrintPause(bool is_pause, bool is_m0pause, bool M600)
           Serial_Puts(SERIAL_PORT, "M108\n");
           break;
         }
-        if (isCoorRelative == true)     mustStoreCmd("G90\n");
-        if (isExtrudeRelative == true)  mustStoreCmd("M82\n");
-
-        if (coordinateIsKnown())
-        {
-          mustStoreCmd("G1 X%.3f Y%.3f F%d\n", coordinateTmp.axis[X_AXIS], coordinateTmp.axis[Y_AXIS], infoSettings.pause_feedrate[X_AXIS]);
-          mustStoreCmd("G1 Z%.3f F%d\n", coordinateTmp.axis[Z_AXIS], infoSettings.pause_feedrate[Z_AXIS]);
-        }
-        mustStoreCmd("G92 E%.5f\n", coordinateTmp.axis[E_AXIS]);
-        mustStoreCmd("G1 F%d\n", coordinateTmp.feedrate);
-
-        if (isCoorRelative == true)     mustStoreCmd("G91\n");
-        if (isExtrudeRelative == true)  mustStoreCmd("M83\n");
+        restoreSavedPrinterState();
       }
       break;
   }

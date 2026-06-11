@@ -63,4 +63,17 @@ COORDINATE coordinateTmp;
 bool isCoorRelative;
 bool isExtrudeRelative;
 
+typedef struct
+{
+  bool       isRelativeCoor;
+  bool       isRelativeExtrude;
+  COORDINATE coordinate;
+} PrinterState;
+
+extern PrinterState printerStateBeforePause;
+
+void saveCurrentState(void);
+void moveToPausePosition(void);
+void restoreSavedPrinterState(void);
+
 #endif
