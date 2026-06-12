@@ -90,6 +90,7 @@ PrinterState printerStateBeforePause;
 static PRINTING infoPrinting;
 
 static bool    update_waiting = false;
+static bool    m600PauseActive = false;
 
 //
 bool isPrinting(void)
@@ -417,6 +418,7 @@ bool setPrintPause(bool is_pause, bool is_m0pause, bool M600)
           break;
         }
 
+        if (M600) { mustStoreCmd("M84 S0\n"); m600PauseActive = true; }
         saveCurrentState();
         performPauseRetraction();
         moveToPausePosition();
@@ -429,6 +431,7 @@ bool setPrintPause(bool is_pause, bool is_m0pause, bool M600)
           Serial_Puts(SERIAL_PORT, "M108\n");
           break;
         }
+        if (m600PauseActive) { mustStoreCmd("M84 S120\n"); m600PauseActive = false; }
         performResumePurge();
         restoreSavedPrinterState();
       }
@@ -439,9 +442,6 @@ bool setPrintPause(bool is_pause, bool is_m0pause, bool M600)
 
   if (M600 && is_pause)
   {
-      // Disable stepper_motors_timeout.
-      // Otherwise bed or printhead risk to be moved when inserting filament, causing layer shifting when resuming print.
-      mustStoreCmd("M84 S0\n");
       Buzzer_play(sound_notify);
       popupReminder((u8 *)"M600/M601", textSelect(LABEL_FILAMENT_CHANGE));
   }

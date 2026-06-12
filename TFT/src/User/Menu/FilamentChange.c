@@ -57,6 +57,7 @@ void menuFilamentChange(void)
 #if LCD_ENCODER_SUPPORT
   encoderPosition = 0;
 #endif
+  mustStoreCmd("M17\n");  // Lock all steppers while changing filament
   if(isPause()){
     if (!printerStateBeforePause.isRelativeCoor)    mustStoreCmd("G91\n");
     if (!printerStateBeforePause.isRelativeExtrude) mustStoreCmd("M83\n");
